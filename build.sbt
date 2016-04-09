@@ -575,7 +575,13 @@ lazy val test = project
   .settings(Defaults.itSettings: _*)
   .settings(
     publishArtifact := false,
+    autoCompilerPlugins := true,
     libraryDependencies ++= Seq(asmDep, partestDep, scalaXmlDep, scalacheckDep),
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats" % "0.4.1",
+      compilerPlugin("org.spire-math" %% "kind-projector" % "0.6.3")
+    ),
+    scalacOptions ++= Seq("-Xplugin-require:kind-projector"),
     unmanagedBase in IntegrationTest := baseDirectory.value / "files" / "lib",
     unmanagedJars in IntegrationTest <+= (unmanagedBase) (j => Attributed.blank(j)) map(identity),
     // no main sources
