@@ -103,6 +103,7 @@ lazy val publishSettings : Seq[Setting[_]] = Seq(
     if (file.exists) List(Credentials(file))
     else Nil
   },
+  publishTo := Some(Resolver.file("file",  new File(Path.userHome.absolutePath+"/tmp/scalatl"))),
   publishMavenStyle := true
 )
 
@@ -113,8 +114,8 @@ lazy val publishSettings : Seq[Setting[_]] = Seq(
 // VersionUtil.versionPropertiesImpl for details. The standard sbt `version` setting should not be set directly. It
 // is the same as the Maven version and derived automatically from `baseVersion` and `baseVersionSuffix`.
 globalVersionSettings
-baseVersion in Global := "2.11.8"
-baseVersionSuffix in Global := "SNAPSHOT"
+baseVersion in Global := "2.11.8-tl"
+baseVersionSuffix in Global := ""
 
 lazy val commonSettings = clearSourceAndResourceDirectories ++ publishSettings ++ Seq[Setting[_]](
   organization := "org.scala-lang",
