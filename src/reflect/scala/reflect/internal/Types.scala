@@ -3097,7 +3097,7 @@ trait Types
             // A more "natural" unifier might be M[t] = [t][t => t]. There's lots of scope for
             // experimenting with alternatives here.
             val (prefix, suffix) = tp.typeArgs.splitAt(tp.typeArgs.length-typeArgs.length)
-            val newSyms = typeArgs.map(_ => tp.typeSymbol.owner.newTypeParameter(currentFreshNameCreator.newName("Unify$")) setInfo TypeBounds.empty)
+            val newSyms = typeArgs.map(_ => tp.typeSymbol.newTypeParameter(currentFreshNameCreator.newName("Unify$")) setInfo TypeBounds.empty)
             val poly = PolyType(newSyms, appliedType(tp.typeConstructor, prefix ++ newSyms.map(_.tpeHK)))
 
             val lhs = if (isLowerBound) suffix else typeArgs

@@ -1,4 +1,4 @@
-package cuckoo
+package test
 
 // Original test case from,
 //
