@@ -3082,7 +3082,7 @@ trait Types
             // This is a higher-kinded type var with same arity as tp.
             // If so (see SI-7517), side effect: adds the type constructor itself as a bound.
             isSubArgs(lhs, rhs, params, AnyDepth) && { addBound(tp.typeConstructor); true }
-          } else if(compareLengths(typeArgs, tp.typeArgs) <= 0) {
+          } else if(settings.YhigherOrderUnification && compareLengths(typeArgs, tp.typeArgs) <= 0) {
             // Simple algorithm as suggested by Paul Chiusano in the comments on SI-2712
             //
             //   https://issues.scala-lang.org/browse/SI-2712?focusedCommentId=61270

@@ -83,7 +83,7 @@ object ScalaOptionParser {
   private def booleanSettingNames = List("-X", "-Xcheckinit", "-Xdev", "-Xdisable-assertions", "-Xexperimental", "-Xfatal-warnings", "-Xfull-lubs", "-Xfuture", "-Xlog-free-terms", "-Xlog-free-types", "-Xlog-implicit-conversions", "-Xlog-implicits", "-Xlog-reflective-calls",
     "-Xno-forwarders", "-Xno-patmat-analysis", "-Xno-uescape", "-Xnojline", "-Xprint-pos", "-Xprint-types", "-Xprompt", "-Xresident", "-Xshow-phases", "-Xstrict-inference", "-Xverify", "-Y",
     "-Ybreak-cycles", "-Yclosure-elim", "-Yconst-opt", "-Ydead-code", "-Ydebug", "-Ycompact-trees", "-Ydisable-unreachable-prevention", "-YdisableFlatCpCaching", "-Ydoc-debug",
-    "-Yeta-expand-keeps-star", "-Yide-debug", "-Yinfer-argument-types", "-Yinfer-by-name", "-Yinfer-debug", "-Yinline", "-Yinline-handlers",
+    "-Yeta-expand-keeps-star", "-Yhigher-order-unification", "-Yide-debug", "-Yinfer-argument-types", "-Yinfer-by-name", "-Yinfer-debug", "-Yinline", "-Yinline-handlers",
     "-Yinline-warnings", "-Yissue-debug", "-Ylog-classpath", "-Ymacro-debug-lite", "-Ymacro-debug-verbose", "-Ymacro-no-expand",
     "-Yno-completion", "-Yno-generic-signatures", "-Yno-imports", "-Yno-load-impl-class", "-Yno-predef", "-Ynooptimise",
     "-Yoverride-objects", "-Yoverride-vars", "-Ypatmat-debug", "-Yno-adapted-args", "-Ypos-debug", "-Ypresentation-debug",
