@@ -3082,7 +3082,7 @@ trait Types
             // This is a higher-kinded type var with same arity as tp.
             // If so (see SI-7517), side effect: adds the type constructor itself as a bound.
             isSubArgs(lhs, rhs, params, AnyDepth) && { addBound(tp.typeConstructor); true }
-          } else if(settings.YhigherOrderUnification && compareLengths(typeArgs, tp.typeArgs) <= 0) {
+          } else if(settings.YhigherOrderUnification && typeArgs.lengthCompare(0) > 0 && compareLengths(typeArgs, tp.typeArgs) < 0) {
             // Simple algorithm as suggested by Paul Chiusano in the comments on SI-2712
             //
             //   https://issues.scala-lang.org/browse/SI-2712?focusedCommentId=61270
@@ -3111,7 +3111,7 @@ trait Types
 
             val captured = tp.typeArgs.length-typeArgs.length
             val (prefix, suffix) = tp.typeArgs.splitAt(captured)
-            val absSyms = tp.typeSymbol.typeParams.drop(captured)
+            val absSyms = tp.typeSymbolDirect.typeParams.drop(captured)
 
             val freeSyms = absSyms.map(sym => mkFreeSym(tp.typeSymbol, sym.asType))
             val poly = PolyType(freeSyms, appliedType(tp.typeConstructor, prefix ++ freeSyms.map(_.tpeHK)))
