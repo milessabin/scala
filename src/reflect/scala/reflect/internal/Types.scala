@@ -3097,30 +3097,20 @@ trait Types
             // A more "natural" unifier might be M[t] = [t][t => t]. There's lots of scope for
             // experimenting with alternatives here.
 
-            def mkFreeSym(owner: Symbol, absSym: TypeSymbol): TypeSymbol = {
-              val name = currentFreshNameCreator.newName("Unify$")
-              val freeSym = owner.newTypeParameter(name)
-              val bounds = absSym.info.bounds
-              val info =
-                absSym.typeParams match {
-                  case Nil    => bounds
-                  case params => PolyType(params.map(sym => mkFreeSym(freeSym, sym.asType)), bounds)
-                }
-              freeSym setInfo info
-            }
-
             val captured = tp.typeArgs.length-typeArgs.length
             val (prefix, suffix) = tp.typeArgs.splitAt(captured)
-            val absSyms = tp.typeSymbolDirect.typeParams.drop(captured)
-
-            val freeSyms = absSyms.map(sym => mkFreeSym(tp.typeSymbol, sym.asType))
-            val poly = PolyType(freeSyms, appliedType(tp.typeConstructor, prefix ++ freeSyms.map(_.tpeHK)))
 
             val lhs = if (isLowerBound) suffix else typeArgs
             val rhs = if (isLowerBound) typeArgs else suffix
             // This is a higher-kinded type var with same arity as tp.
             // If so (see SI-7517), side effect: adds the type constructor itself as a bound.
-            isSubArgs(lhs, rhs, params, AnyDepth) && { addBound(poly.typeConstructor); true }
+            isSubArgs(lhs, rhs, params, AnyDepth) && {
+              val absSyms = tp.typeSymbolDirect.typeParams.drop(captured)
+              val freeSyms = absSyms.map(sym => sym.cloneSymbol(tp.typeSymbol))
+              val poly = PolyType(freeSyms, appliedType(tp.typeConstructor, prefix ++ freeSyms.map(_.tpeHK)))
+              addBound(poly)
+              true
+            }
           } else
             false
         }
