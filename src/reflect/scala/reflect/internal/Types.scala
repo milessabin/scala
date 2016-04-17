@@ -3105,8 +3105,9 @@ trait Types
             // This is a higher-kinded type var with same arity as tp.
             // If so (see SI-7517), side effect: adds the type constructor itself as a bound.
             isSubArgs(lhs, rhs, params, AnyDepth) && {
-              val absSyms = tp.typeSymbolDirect.typeParams.drop(captured)
-              val freeSyms = absSyms.map(sym => sym.cloneSymbol(tp.typeSymbol))
+              val tpSym = tp.typeSymbolDirect
+              val absSyms = tpSym.typeParams.drop(captured)
+              val freeSyms = absSyms.map(_.cloneSymbol(tpSym))
               val poly = PolyType(freeSyms, appliedType(tp.typeConstructor, prefix ++ freeSyms.map(_.tpeHK)))
               addBound(poly)
               true
