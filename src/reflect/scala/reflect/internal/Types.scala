@@ -3097,18 +3097,28 @@ trait Types
             // A more "natural" unifier might be M[t] = [t][t => t]. There's lots of scope for
             // experimenting with alternatives here.
 
-            val captured = tp.typeArgs.length-typeArgs.length
-            val (prefix, suffix) = tp.typeArgs.splitAt(captured)
+            val tpSym = tp.typeSymbolDirect
+            val rightToLeft = tpSym.annotations.exists(_ matches definitions.unifyRightToLeftClass)
 
-            val lhs = if (isLowerBound) suffix else typeArgs
-            val rhs = if (isLowerBound) typeArgs else suffix
+            val numAbstracted = typeArgs.length
+            val numCaptured = tp.typeArgs.length-numAbstracted
+            val (captured, abstracted) =
+              if(rightToLeft) tp.typeArgs.splitAt(numAbstracted).swap
+             else tp.typeArgs.splitAt(numCaptured)
+
+            val lhs = if (isLowerBound) abstracted else typeArgs
+            val rhs = if (isLowerBound) typeArgs else abstracted
             // This is a higher-kinded type var with same arity as tp.
             // If so (see SI-7517), side effect: adds the type constructor itself as a bound.
             isSubArgs(lhs, rhs, params, AnyDepth) && {
-              val tpSym = tp.typeSymbolDirect
-              val absSyms = tpSym.typeParams.drop(captured)
+              val absSyms =
+                if(rightToLeft) tpSym.typeParams.take(numAbstracted)
+                else tpSym.typeParams.drop(numCaptured)
               val freeSyms = absSyms.map(_.cloneSymbol(tpSym))
-              val poly = PolyType(freeSyms, appliedType(tp.typeConstructor, prefix ++ freeSyms.map(_.tpeHK)))
+              val args =
+                if(rightToLeft) freeSyms.map(_.tpeHK) ++ captured
+                else captured ++ freeSyms.map(_.tpeHK)
+              val poly = PolyType(freeSyms, appliedType(tp.typeConstructor, args))
               addBound(poly)
               true
             }
