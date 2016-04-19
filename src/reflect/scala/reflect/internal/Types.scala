@@ -3136,7 +3136,6 @@ trait Types
             val rhs = if (isLowerBound) typeArgs else tp.typeArgs
             // This is a higher-kinded type var with same arity as tp.
             // If so (see SI-7517), side effect: adds the type constructor itself as a bound.
-            val saved = undoLog.log
             val withinBounds = isWithinBounds(prefix, origin.typeSymbol.owner, origin.typeSymbol :: Nil, tp.typeConstructor :: Nil)
             withinBounds && isSubArgs(lhs, rhs, params, AnyDepth) && {
               addBound(tp.typeConstructor); true
