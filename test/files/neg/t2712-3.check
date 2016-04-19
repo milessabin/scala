@@ -1,0 +1,11 @@
+t2712-3.scala:18: error: type mismatch;
+ found   : test.One[test.X3]
+ required: test.Two[test.X1,test.X2]
+  test1(foo): Two[X1, X2] // fails without -Yhigher-order-unification
+       ^
+t2712-3.scala:21: error: type mismatch;
+ found   : test.One[test.X3]
+ required: test.Two[test.X1,test.X2]
+  test2(foo): Two[X1, X2] // fails in both cases
+       ^
+two errors found
