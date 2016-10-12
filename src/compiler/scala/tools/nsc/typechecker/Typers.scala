@@ -958,10 +958,10 @@ trait Typers extends Adaptations with Tags with TypersTracking with PatternTyper
         // but this needs additional investigation, because it crashes t5228, gadts1 and maybe something else
         if (mode.inFunMode)
           tree
-        else if (properTypeRequired && tree.symbol.typeParams.nonEmpty)  // (7)
+        /*else if (properTypeRequired && tree.symbol.typeParams.nonEmpty)  // (7)
           MissingTypeParametersError(tree)
         else if (kindArityMismatch && !kindArityMismatchOk)  // (7.1) @M: check kind-arity
-          KindArityMismatchError(tree, pt)
+          KindArityMismatchError(tree, pt)*/
         else tree match { // (6)
           case TypeTree() => tree
           case _          => TypeTree(tree.tpe) setOriginal tree
