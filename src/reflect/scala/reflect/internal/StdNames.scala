@@ -1088,6 +1088,8 @@ trait StdNames {
     val reflMethodName: NameType      = "reflMethod$Method"
     val argument: NameType            = "<argument>"
 
+    val annottees: NameType           = "annottees"
+    val macroTransform: NameType      = "macroTransform"
   }
 
   class JavaKeywords {

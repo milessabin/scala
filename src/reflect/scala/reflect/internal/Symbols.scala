@@ -617,6 +617,9 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
     def isVariable          = false
     def isTermMacro         = false
 
+    def isMacroAnnotation   = false
+    def isAnnotationMacro   = false
+
     /** Qualities of MethodSymbols, always false for TypeSymbols
      *  and other TermSymbols.
      */
@@ -2746,6 +2749,8 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
     override def isVariable  = isMutable && !isMethod
     override def isTermMacro = hasFlag(MACRO)
 
+    override def isAnnotationMacro = isTermMacro && owner.isMacroAnnotation && name == nme.macroTransform
+
     // interesting only for lambda lift. Captured variables are accessed from inner lambdas.
     override def isCapturedVariable = hasAllFlags(MUTABLE | CAPTURED) && !hasFlag(METHOD)
 
@@ -3185,6 +3190,8 @@ trait Symbols extends api.Symbols { self: SymbolTable =>
     override def isPackageObjectClass    = isModuleClass && (name == tpnme.PACKAGE)
     override def isPrimitiveValueClass   = definitions.isPrimitiveValueClass(this)
     override def isPrimitive             = isPrimitiveValueClass
+
+    override def isMacroAnnotation       = this hasFlag MACRO
 
     // The corresponding interface is the last parent by convention.
     private def lastParent = if (tpe.parents.isEmpty) NoSymbol else tpe.parents.last.typeSymbol
