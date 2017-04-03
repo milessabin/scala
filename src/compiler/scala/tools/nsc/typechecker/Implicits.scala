@@ -583,10 +583,16 @@ trait Implicits {
         case NullaryMethodType(restpe)  => loop(restpe, pt)
         case PolyType(_, restpe)        => loop(restpe, pt)
         case ExistentialType(_, qtpe)   => if (fast) loop(qtpe, pt) else normalize(tp) <:< pt // is !fast case needed??
-        case _                          => if (fast) isPlausiblySubType(tp, pt) else tp <:< pt
+        case _                          => if (fast) isPlausiblySubType(tp, unwrapByName(pt)) else tp <:< unwrapByName(pt)
       }
       loop(tp0, pt0)
     }
+
+    def unwrapByName(tp: Type): Type =
+      tp match {
+        case TypeRef(_, sym, List(arg)) if !isView && (sym eq ByNameParamClass) => arg
+        case _ => tp
+      }
 
     /** This expresses more cleanly in the negative: there's a linear path
      *  to a final true or false.
@@ -597,7 +603,7 @@ trait Implicits {
       // side is a class, else we may not know enough.
       case tr1 @ TypeRef(_, sym1, _) if sym1.isClass =>
         tp2.dealiasWiden match {
-          case TypeRef(_, sym2, _)         => ((sym1 eq ByNameParamClass) != (sym2 eq ByNameParamClass)) || (sym2.isClass && !(sym1 isWeakSubClass sym2))
+          case TypeRef(_, sym2, _)         => sym2.isClass && !(sym1 isWeakSubClass sym2)
           case RefinedType(parents, decls) => decls.nonEmpty && tr1.member(decls.head.name) == NoSymbol
           case _                           => false
         }
@@ -636,7 +642,7 @@ trait Implicits {
       typingLog("considering", typeDebug.ptTree(itree1))
 
       def fail(reason: String): SearchResult = failure(itree0, reason)
-      def fallback = typed1(itree1, EXPRmode, wildPt)
+      def fallback = typed1(itree1, EXPRmode, unwrapByName(wildPt))
       try {
         val itree2 = if (!isView) fallback else pt match {
           case Function1(arg1, arg2) =>
@@ -674,7 +680,7 @@ trait Implicits {
         if (Statistics.canEnable) Statistics.incCounter(typedImplicits)
 
         val itree3 = if (isView) treeInfo.dissectApplied(itree2).callee
-                     else adapt(itree2, EXPRmode, wildPt)
+                     else adapt(itree2, EXPRmode, unwrapByName(wildPt))
 
         typingStack.showAdapt(itree0, itree3, pt, context)
 
