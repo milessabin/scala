@@ -843,7 +843,8 @@ trait Typers extends Adaptations with Tags with TypersTracking with PatternTyper
         // avoid throwing spurious DivergentImplicit errors
         if (context.reporter.hasErrors)
           setError(tree)
-        else
+        else {
+          val res =
           withCondConstrTyper(treeInfo.isSelfOrSuperConstrCall(tree))(typer1 =>
             if (original != EmptyTree && pt != WildcardType) (
               typer1 silent { tpr =>
@@ -887,6 +888,21 @@ trait Typers extends Adaptations with Tags with TypersTracking with PatternTyper
             else
               typer1.typed(typer1.applyImplicitArgs(tree), mode, pt)
           )
+
+          if(context.openImplicits.nonEmpty || context.dictionary.isEmpty) res
+          else {
+            val vdefs = context.dictionary.map { case (tpe, (nme, tree)) =>
+              ValDef(NoMods, nme, TypeTree(tpe), tree)
+            }.toList
+            val blk = Block(
+              ModuleDef(NoMods, TermName("LazyDefns"), Template(Nil, noSelfType, vdefs)),
+              res
+            )
+            blk.setType(res.tpe)
+            println(blk)
+            blk
+          }
+        }
       }
 
       def instantiateToMethodType(mt: MethodType): Tree = {

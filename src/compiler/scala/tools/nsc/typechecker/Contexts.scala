@@ -239,6 +239,21 @@ trait Contexts { self: Analyzer =>
 
     /** Types for which implicit arguments are currently searched */
     var openImplicits: List[OpenImplicit] = List()
+    var _dictionary: Map[Type, (TermName, Tree)] = null
+    def dictionary: Map[Type, (TermName, Tree)] = {
+      if(_dictionary != null) _dictionary
+      else if(openImplicits.isEmpty) {
+        _dictionary = Map[Type, (TermName, Tree)]()
+        _dictionary
+      } else outer.dictionary
+    }
+    def dictionary_=(d: Map[Type, (TermName, Tree)]): Map[Type, (TermName, Tree)] = {
+      if(_dictionary != null) _dictionars
+      else if(openImplicits.isEmpty) {
+        _dictionary = Map[Type, (TermName, Tree)]()
+        _dictionary
+      } else outer.dictionary
+    }
 
     /* For a named application block (`Tree`) the corresponding `NamedApplyInfo`. */
     var namedApplyBlockInfo: Option[(Tree, NamedApplyInfo)] = None
@@ -475,6 +490,7 @@ trait Contexts { self: Analyzer =>
       c.variance           = variance
       c.diagUsedDefaults   = diagUsedDefaults
       c.openImplicits      = openImplicits
+      c.dictionary         = dictionary
       c.contextMode        = contextMode // note: ConstructorSuffix, a bit within `mode`, is conditionally overwritten below.
 
       // Fields that may take on a different value in the child
