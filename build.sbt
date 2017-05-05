@@ -95,7 +95,7 @@ mimaReferenceVersion in Global := None
 scalaVersion in Global := versionProps("starr.version")
 
 lazy val commonSettings = clearSourceAndResourceDirectories ++ publishSettings ++ Seq[Setting[_]](
-  organization := "org.scala-lang",
+  organization := "org.typelevel",
   // we don't cross build Scala itself
   crossPaths := false,
   // do not add Scala library jar as a dependency automatically
