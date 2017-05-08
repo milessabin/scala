@@ -5029,7 +5029,7 @@ trait Typers extends Adaptations with Tags with TypersTracking with PatternTyper
                   else Kind.Wildcard
 
                   if(settings.YkindPolymorphism) {
-                    tparam.initialize
+                    tparam.maybeInitialize
                     if(isAnyKind(tparam.tpe))
                       typedHigherKindedType(arg, mode)
                     else
