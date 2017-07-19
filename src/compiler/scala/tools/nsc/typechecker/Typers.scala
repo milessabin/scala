@@ -886,8 +886,45 @@ trait Typers extends Adaptations with Tags with TypersTracking with PatternTyper
                 }
               }
             )
-            else
-              typer1.typed(typer1.applyImplicitArgs(tree), mode, pt)
+            else {
+              if(tree.symbol != null && !tree.symbol.isConstructor) {
+                def stabilizeQual(tree: Tree): Option[(Tree, ValDef)] = tree match {
+                  case Select(qual, name) if qual.tpe.isStable => None
+                  case Select(qual, name) =>
+                    val vsym = context.owner.newValue(unit.freshTermName(), context.owner.pos, SYNTHETIC)
+                    vsym.setInfo(qual.tpe)
+                    val vdef = ValDef(vsym, qual)
+                    val newQual = Ident(vsym).setType(qual.tpe)
+                    val newSelect = makeAccessible(treeCopy.Select(tree, newQual, name), tree.symbol, singleType(NoPrefix, vsym), newQual)._1
+                    if(newSelect.tpe.contains(vsym))
+                      Some((newSelect, vdef))
+                    else None
+                  case Apply(lhs, args) =>
+                    stabilizeQual(lhs).map { case (newLhs, vdef) =>
+                      val MethodType(_, applyTpe) = newLhs.tpe
+                      val newApply = treeCopy.Apply(tree, newLhs, args) setType applyTpe
+                      (newApply, vdef)
+                    }
+                  case TypeApply(lhs, args) =>
+                    stabilizeQual(lhs).map { case (newLhs, vdef) =>
+                      val targs = mapList(args)(treeTpe)
+                      val PolyType(tparams, restpe) = newLhs.tpe
+                      checkBounds(tree, NoPrefix, NoSymbol, tparams, targs, "")
+                      val typeApplyTpe = restpe.instantiateTypeParams(tparams, targs)
+                      val newTypeApply = treeCopy.TypeApply(tree, newLhs, args) setType typeApplyTpe
+                      (newTypeApply, vdef)
+                    }
+                  case _ => None
+                }
+
+                stabilizeQual(tree).map { case (newLhs, vdef) =>
+                  val resolved = typer1.applyImplicitArgs(newLhs)
+                  val newTree = Block(vdef, resolved) setPos tree.pos
+                  typer1.typed(newTree, mode, pt)
+                }.getOrElse(typer1.typed(typer1.applyImplicitArgs(tree), mode, pt))
+              } else
+                typer1.typed(typer1.applyImplicitArgs(tree), mode, pt)
+            }
           )
       }
 
