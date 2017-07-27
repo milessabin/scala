@@ -891,11 +891,12 @@ trait Typers extends Adaptations with Tags with TypersTracking with PatternTyper
                 def stabilizeQual(tree: Tree): Option[(Tree, ValDef)] = tree match {
                   case Select(qual, name) if qual.tpe.isStable => None
                   case Select(qual, name) =>
-                    val vsym = context.owner.newValue(unit.freshTermName(), context.owner.pos, SYNTHETIC)
+                    val vsym = context.owner.newValue(unit.freshTermName(), qual.pos.focus, SYNTHETIC | ARTIFACT)
                     vsym.setInfo(qual.tpe)
                     val vdef = ValDef(vsym, qual)
                     val newQual = Ident(vsym).setType(qual.tpe)
-                    val newSelect = makeAccessible(treeCopy.Select(tree, newQual, name), tree.symbol, singleType(NoPrefix, vsym), newQual)._1
+                    val newSelect0 = atPos(tree.pos)(treeCopy.Select(tree, newQual, name))
+                    val newSelect = makeAccessible(newSelect0, tree.symbol, singleType(NoPrefix, vsym), newQual)._1
                     if(newSelect.tpe.contains(vsym))
                       Some((newSelect, vdef))
                     else None
@@ -917,6 +918,10 @@ trait Typers extends Adaptations with Tags with TypersTracking with PatternTyper
                   case _ => None
                 }
 
+                // Rewrites "qual.name ..." to "{ val lhs = qual ; lhs.name ... }" in cases where
+                // name has a method type which depends on its prefix. If this is the case then
+                // hoisting qual out as a stable val means that members of implicit scopes which
+                // accessible via lhs can be candidates for satisfying implicit arguments of name.
                 stabilizeQual(tree).map { case (newLhs, vdef) =>
                   val resolved = typer1.applyImplicitArgs(newLhs)
                   val newTree = Block(vdef, resolved) setPos tree.pos
