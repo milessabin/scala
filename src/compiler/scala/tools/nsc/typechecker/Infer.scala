@@ -836,24 +836,9 @@ trait Infer extends Checkable {
               // Backport of fix for https://github.com/scala/bug/issues/2509
               // from Dotty https://github.com/lampepfl/dotty/commit/89540268e6c49fb92b9ca61249e46bb59981bf5a
               val flip = new TypeMap(trackVariance = true) {
-                var subst: Map[Symbol, Symbol] = Map.empty
                 def apply(tp: Type): Type = tp match {
                   case TypeRef(pre, sym, args) if variance > 0 && sym.typeParams.exists(_.isContravariant) =>
-                    val flippedSym =
-                      subst.get(sym) match {
-                        case None =>
-                          val flippedClassSym = sym.owner.newClassSymbol(sym.name.toTypeName, sym.pos, sym.flags)
-                          val flippedParams = sym.rawInfo.typeParams.map { param =>
-                            val flippedFlags = if(param.isContravariant) (param.flags&(~CONTRAVARIANT))|COVARIANT else param.flags
-                            flippedClassSym.newTypeParameter(param.name.toTypeName, param.pos, flippedFlags) setInfo param.info
-                          }
-                          flippedClassSym setInfo PolyType(flippedParams, sym.rawInfo.resultType.substituteSymbols(sym.rawInfo.typeParams, flippedParams))
-                          subst += (sym -> flippedClassSym)
-                          flippedClassSym
-                        case Some(sym) => sym
-                      }
-
-                    TypeRef(pre, flippedSym, args)
+                    TypeRef(pre, sym.flipped, args)
                   case _: TypeRef => tp
                   case _ =>
                     mapOver(tp)
