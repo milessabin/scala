@@ -223,7 +223,7 @@ trait ScalaSettings extends AbsScalaSettings
   val YdisableFlatCpCaching  = BooleanSetting    ("-YdisableFlatCpCaching", "Do not cache flat classpath representation of classpath elements from jars across compiler instances.")
   val YpartialUnification = BooleanSetting ("-Ypartial-unification", "Enable partial unification in type constructor inference")
   val Yvirtpatmat     = BooleanSetting    ("-Yvirtpatmat", "Enable pattern matcher virtualization")
-  val YdottySpecificity = BooleanSetting ("-Ydotty-specificity", "Enable Dotty compatible rules for overload selection by specifity")
+  val YdottySpecificity = BooleanSetting ("-Ydotty-specificity", "Enable Dotty compatible rules for overload selection by specificity")
 
   val exposeEmptyPackage = BooleanSetting ("-Yexpose-empty-package", "Internal only: expose the empty package.").internalOnly()
   val Ydelambdafy        = ChoiceSetting  ("-Ydelambdafy", "strategy", "Strategy used for translating lambdas into JVM code.", List("inline", "method"), "method")
