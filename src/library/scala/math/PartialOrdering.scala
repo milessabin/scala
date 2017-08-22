@@ -38,7 +38,7 @@ package math
  *  @since 2.7
  */
 
-trait PartialOrdering[T] extends Equiv[T] {
+trait PartialOrdering[-T] extends Equiv[T] {
   outer =>
 
   /** Result of comparing `x` with operand `y`.

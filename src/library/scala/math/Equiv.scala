@@ -30,7 +30,7 @@ import java.util.Comparator
  *  @since 2.7
  */
 
-trait Equiv[T] extends Any with Serializable {
+trait Equiv[-T] extends Any with Serializable {
   /** Returns `true` iff `x` is equivalent to `y`.
    */
   def equiv(x: T, y: T): Boolean

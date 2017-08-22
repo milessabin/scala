@@ -203,7 +203,7 @@ trait MemberEntity extends Entity {
 object MemberEntity {
   // Oh contravariance, contravariance, wherefore art thou contravariance?
   // Note: the above works for both the commonly misunderstood meaning of the line and the real one.
-  implicit lazy val MemberEntityOrdering: Ordering[MemberEntity] = Entity.EntityOrdering on (x => x)
+  //implicit lazy val MemberEntityOrdering: Ordering[MemberEntity] = Entity.EntityOrdering on (x => x)
 }
 
 /** An entity that is parameterized by types */

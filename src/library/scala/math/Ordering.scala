@@ -11,6 +11,7 @@ package math
 
 import java.util.Comparator
 import scala.language.{implicitConversions, higherKinds}
+import scala.annotation.unchecked.uncheckedVariance
 
 /** Ordering is a trait whose instances each represent a strategy for sorting
   * instances of a type.
@@ -66,7 +67,7 @@ import scala.language.{implicitConversions, higherKinds}
   * @see [[scala.math.Ordered]], [[scala.util.Sorting]]
   */
 @annotation.implicitNotFound(msg = "No implicit Ordering defined for ${T}.")
-trait Ordering[T] extends Comparator[T] with PartialOrdering[T] with Serializable {
+trait Ordering[-T] extends Comparator[T @uncheckedVariance] with PartialOrdering[T] with Serializable {
   outer =>
 
   /** Returns whether a comparison between `x` and `y` is defined, and if so
@@ -100,10 +101,10 @@ trait Ordering[T] extends Comparator[T] with PartialOrdering[T] with Serializabl
   override def equiv(x: T, y: T): Boolean = compare(x, y) == 0
 
   /** Return `x` if `x` >= `y`, otherwise `y`. */
-  def max(x: T, y: T): T = if (gteq(x, y)) x else y
+  //def max[U <: T](x: T, y: T): U = if (gteq(x, y)) x else y
 
   /** Return `x` if `x` <= `y`, otherwise `y`. */
-  def min(x: T, y: T): T = if (lteq(x, y)) x else y
+  //def min(x: T, y: T): T = if (lteq(x, y)) x else y
 
   /** Return the opposite ordering of this one. */
   override def reverse: Ordering[T] = new Ordering[T] {
@@ -129,8 +130,8 @@ trait Ordering[T] extends Comparator[T] with PartialOrdering[T] with Serializabl
     def >(rhs: T) = gt(lhs, rhs)
     def >=(rhs: T) = gteq(lhs, rhs)
     def equiv(rhs: T) = Ordering.this.equiv(lhs, rhs)
-    def max(rhs: T): T = Ordering.this.max(lhs, rhs)
-    def min(rhs: T): T = Ordering.this.min(lhs, rhs)
+    //def max(rhs: T): T = Ordering.this.max(lhs, rhs)
+    //def min(rhs: T): T = Ordering.this.min(lhs, rhs)
   }
 
   /** This implicit method augments `T` with the comparison operators defined
@@ -161,6 +162,11 @@ trait LowPriorityOrderingImplicits {
   */
 object Ordering extends LowPriorityOrderingImplicits {
   def apply[T](implicit ord: Ordering[T]) = ord
+
+  implicit class Syntax[T](ord: Ordering[T]) {
+    def max(x: T, y: T): T = if(ord.gteq(x, y)) x else y
+    def min(x: T, y: T): T = if(ord.lteq(x, y)) x else y
+  }
 
   trait ExtraImplicits {
     /** Not in the standard scope due to the potential for divergence:
@@ -268,8 +274,8 @@ object Ordering extends LowPriorityOrderingImplicits {
     override def lt(x: Float, y: Float): Boolean = x < y
     override def gt(x: Float, y: Float): Boolean = x > y
     override def equiv(x: Float, y: Float): Boolean = x == y
-    override def max(x: Float, y: Float): Float = math.max(x, y)
-    override def min(x: Float, y: Float): Float = math.min(x, y)
+    //override def max(x: Float, y: Float): Float = math.max(x, y)
+    //override def min(x: Float, y: Float): Float = math.min(x, y)
 
     override def reverse: Ordering[Float] = new FloatOrdering {
       override def reverse = outer
@@ -279,8 +285,8 @@ object Ordering extends LowPriorityOrderingImplicits {
       override def gteq(x: Float, y: Float): Boolean = outer.gteq(y, x)
       override def lt(x: Float, y: Float): Boolean = outer.lt(y, x)
       override def gt(x: Float, y: Float): Boolean = outer.gt(y, x)
-      override def min(x: Float, y: Float): Float = outer.max(x, y)
-      override def max(x: Float, y: Float): Float = outer.min(x, y)
+      //override def min(x: Float, y: Float): Float = outer.max(x, y)
+      //override def max(x: Float, y: Float): Float = outer.min(x, y)
 
     }
   }
@@ -296,8 +302,8 @@ object Ordering extends LowPriorityOrderingImplicits {
     override def lt(x: Double, y: Double): Boolean = x < y
     override def gt(x: Double, y: Double): Boolean = x > y
     override def equiv(x: Double, y: Double): Boolean = x == y
-    override def max(x: Double, y: Double): Double = math.max(x, y)
-    override def min(x: Double, y: Double): Double = math.min(x, y)
+    //override def max(x: Double, y: Double): Double = math.max(x, y)
+    //override def min(x: Double, y: Double): Double = math.min(x, y)
 
     override def reverse: Ordering[Double] = new DoubleOrdering {
       override def reverse = outer
@@ -307,8 +313,8 @@ object Ordering extends LowPriorityOrderingImplicits {
       override def gteq(x: Double, y: Double): Boolean = outer.gteq(y, x)
       override def lt(x: Double, y: Double): Boolean = outer.lt(y, x)
       override def gt(x: Double, y: Double): Boolean = outer.gt(y, x)
-      override def min(x: Double, y: Double): Double = outer.max(x, y)
-      override def max(x: Double, y: Double): Double = outer.min(x, y)
+      //override def min(x: Double, y: Double): Double = outer.max(x, y)
+      //override def max(x: Double, y: Double): Double = outer.min(x, y)
     }
   }
   implicit object Double extends DoubleOrdering
