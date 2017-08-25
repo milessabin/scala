@@ -5,7 +5,7 @@ trait Y {
   def value: String
 } 
 
-trait X[-T] { // if I make X invariant, this works
+trait X[-T] {
   def y(t: T): Y
 }
 

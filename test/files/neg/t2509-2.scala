@@ -2,7 +2,7 @@ class A
 class B extends A
 class C extends B
 
-trait X[-T, U] { // if I make X invariant, this works
+trait X[-T, U] {
   val u: U
 }
 

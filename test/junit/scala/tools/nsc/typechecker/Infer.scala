@@ -71,24 +71,24 @@ class InferencerTests extends BytecodeTesting {
 
       // Subtypes of contravaraint effectively unrelated
       assert(!typer.infer.isAsSpecific(ZA, SubZB))
-      assert(!typer.infer.isAsSpecific(SubZB, ZA))
+      assert(typer.infer.isAsSpecific(SubZB, ZA))
 
       // Subtypes of contravaraint effectively unrelated
       assert(!typer.infer.isAsSpecific(ZA, ZBwC))
-      assert(!typer.infer.isAsSpecific(ZBwC, ZA))
+      assert(typer.infer.isAsSpecific(ZBwC, ZA))
 
-      // Corner cases
+      // Contravariant outer subtypes
       assert(!typer.infer.isAsSpecific(ZA, QuuxA))
-      assert(!typer.infer.isAsSpecific(QuuxA, ZA))
+      assert(typer.infer.isAsSpecific(QuuxA, ZA))
 
       assert(!typer.infer.isAsSpecific(ZA, QuuxB))
-      assert(!typer.infer.isAsSpecific(QuuxB, ZA))
+      assert(typer.infer.isAsSpecific(QuuxB, ZA))
 
       assert(!typer.infer.isAsSpecific(ZB, QuuxA))
       assert(!typer.infer.isAsSpecific(QuuxA, ZB))
 
       assert(!typer.infer.isAsSpecific(ZB, QuuxB))
-      assert(!typer.infer.isAsSpecific(QuuxB, ZB))
+      assert(typer.infer.isAsSpecific(QuuxB, ZB))
     }
   }
 
@@ -141,7 +141,7 @@ class InferencerTests extends BytecodeTesting {
       assert(!typer.infer.isAsSpecific(ZA, ZBwC))
       assert(!typer.infer.isAsSpecific(ZBwC, ZA))
 
-      // Corner cases
+      // Contravariant outer subtypes
       assert(!typer.infer.isAsSpecific(ZA, QuuxA))
       assert(typer.infer.isAsSpecific(QuuxA, ZA))
 

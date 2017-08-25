@@ -11,18 +11,18 @@ trait X[-T] {
 
 trait Z[-T] extends X[T]
 
-object ZA extends Z[A] {
+object XA extends X[A] {
   def y(a: A) = new Y { def value = a.getClass + ": AValue" }
 }
 
-object XB extends X[B] {
+object ZB extends Z[B] {
   def y(b: B) = new Y { def value = b.getClass + ": BValue" }
 }
 
 object Test {
   implicit def f[T](t: T)(implicit x: X[T]): Y = x.y(t)
-  implicit val za: Z[A] = ZA
-  implicit val xb: X[B] = XB
+  implicit val za: X[A] = XA
+  implicit val xb: Z[B] = ZB
 
   def main(argv: Array[String]): Unit = {
     val a = new A
@@ -31,4 +31,3 @@ object Test {
     println("B: " + b.value)
   }
 }
-
