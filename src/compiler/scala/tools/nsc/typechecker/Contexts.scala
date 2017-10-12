@@ -35,6 +35,7 @@ trait Contexts { self: Analyzer =>
     override def implicitss: List[List[ImplicitInfo]] = Nil
     override def imports: List[ImportInfo] = Nil
     override def firstImport: Option[ImportInfo] = None
+    override def implicitImports: List[ImportInfo] = Nil
     override def toString = "NoContext"
   }
   private object RootImports {
@@ -236,6 +237,7 @@ trait Contexts { self: Analyzer =>
 
     /** The currently visible imports */
     def imports: List[ImportInfo] = outer.imports
+    def implicitImports: List[ImportInfo] = outer.implicitImports
     /** Equivalent to `imports.headOption`, but more efficient */
     def firstImport: Option[ImportInfo] = outer.firstImport
     def isRootImport: Boolean = false
@@ -472,9 +474,12 @@ trait Contexts { self: Analyzer =>
         else prefix
 
       // The blank canvas
-      val c = if (isImport)
-        new Context(tree, owner, scope, unit, this, reporter) with ImportContext
-      else
+      val c = if (isImport) {
+        if(tree.hasAttachment[ImplicitImport.type])
+          new Context(tree, owner, scope, unit, this, reporter) with ImplicitImportContext
+        else
+          new Context(tree, owner, scope, unit, this, reporter) with ImportContext
+      } else
         new Context(tree, owner, scope, unit, this, reporter)
 
       // Fields that are directly propagated
@@ -1258,6 +1263,13 @@ trait Contexts { self: Analyzer =>
     override final def firstImport  = Some(impInfo)
     override final def isRootImport = !tree.pos.isDefined
     override final def toString     = s"${super.toString} with ImportContext { $impInfo; outer.owner = ${outer.owner} }"
+  }
+
+  trait ImplicitImportContext extends Context {
+    private val impInfo: ImportInfo = new ImportInfo(tree.asInstanceOf[Import], outerDepth)
+
+    override final def implicitImports = impInfo :: super.implicitImports
+    override final def toString     = super.toString + " with " + s"ImplicitImportContext { $impInfo; outer.owner = ${outer.owner} }"
   }
 
   /** A reporter for use during type checking. It has multiple modes for handling errors.

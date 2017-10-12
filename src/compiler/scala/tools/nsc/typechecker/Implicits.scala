@@ -1432,8 +1432,20 @@ trait Implicits {
 
         // `materializeImplicit` does some preprocessing for `pt`
         // is it only meant for manifests/tags or we need to do the same for `implicitsOfExpectedType`?
-        if (result.isFailure && !wasAmbiguous)
-          result = searchImplicit(implicitsOfExpectedType, isLocalToCallsite = false)
+        if (result.isFailure && !wasAmbiguous) {
+          val implicitScope =
+            if(context.implicitImports.isEmpty) implicitsOfExpectedType
+            else {
+              val importedInfos = context.implicitImports.flatMap { imp =>
+                imp.allImportedSymbols.filter(_.isImplicit).map { sym =>
+                  new ImplicitInfo(sym.name, imp.qual.tpe, sym)
+                }
+              }
+              importedInfos :: implicitsOfExpectedType
+            }
+
+          result = searchImplicit(implicitScope, isLocalToCallsite = false)
+        }
 
         if (result.isFailure)
           context.reporter ++= previousErrs
