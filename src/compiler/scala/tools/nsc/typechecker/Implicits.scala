@@ -492,6 +492,9 @@ trait Implicits {
       val existsDominatedImplicit: Boolean =
         if(tree == EmptyTree) false
         else {
+          val ptByName = isByNameParamType(pt)
+          val dpt = if (ptByName) dropByName(pt) else pt
+
           @tailrec
           def loop(ois: List[OpenImplicit], childByName: Boolean): Boolean = {
             ois match {
@@ -500,18 +503,13 @@ trait Implicits {
                 val byName = isByNameParamType(tp)
                 if(!byName && !childByName) {
                   // Existing logic: neither this nor consequent open implicit are by name
-                  (!info.sym.isMacro && tree1.symbol == tree.symbol && !isByNameParamType(tp) && dominates(pt, tp)) || loop(tl, false)
+                  (!info.sym.isMacro && tree1.symbol == tree.symbol && dominates(pt, tp)) || loop(tl, false)
                 } else {
                   if(!info.sym.isMacro && tree1.symbol == tree.symbol) {
-                    val dtp = if(byName) dropByName(tp) else tp
-                    val dpt = dropByName(pt)
-                    if(byName)
-                      // If this open implicit is byname then,
-                      //   if equal we tie the knot
-                      //   if not equal then test for non-dominance here, but no need to continue
-                      //     since any loop would have to pass through here again and either
-                      //     tie the knot or dominate
-                      !(dtp =:= dpt) && dominates(dpt, dtp)
+                    val dtp = if (byName) dropByName(tp) else tp
+                    if(byName && ptByName)
+                      // If this open implicit is byname then tie the knot if equal types
+                      !(dtp =:= dpt) && (dominates(dpt, dtp) || loop(tl, byName))
                     else
                       // childByName implies we are attempting to satisfy a byname argument of this
                       // open implicit, in this case we will tie the knot or diverge at that level
@@ -525,7 +523,7 @@ trait Implicits {
                 }
             }
           }
-          loop(context.openImplicits, false)
+          loop(context.openImplicits, ptByName)
         }
 
       if(existsDominatedImplicit) {
