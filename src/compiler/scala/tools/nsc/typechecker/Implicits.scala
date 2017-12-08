@@ -433,20 +433,6 @@ trait Implicits {
      *  if one or both are intersection types with a pair of overlapping parent types.
      */
     private def dominates(dtor: Type, dted: Type): Boolean = {
-      def core(tp: Type): Type = tp.dealiasWiden match {
-        case RefinedType(parents, defs)         => intersectionType(parents map core, tp.typeSymbol.owner)
-        case AnnotatedType(annots, tp)          => core(tp)
-        case ExistentialType(tparams, result)   => core(result).subst(tparams, tparams map (t => core(t.info.bounds.hi)))
-        case PolyType(tparams, result)          => core(result).subst(tparams, tparams map (t => core(t.info.bounds.hi)))
-        case _                                  => tp
-      }
-      def stripped(tp: Type): Type = {
-        // `t.typeSymbol` returns the symbol of the normalized type. If that normalized type
-        // is a `PolyType`, the symbol of the result type is collected. This is precisely
-        // what we require for scala/bug#5318.
-        val syms = for (t <- tp; if t.typeSymbol.isTypeParameter) yield t.typeSymbol
-        deriveTypeWithWildcards(syms.distinct)(tp)
-      }
       def complexity(tp: Type): Int = tp.dealias match {
         case NoPrefix                => 0
         case SingleType(pre, sym)    => if (sym.hasPackageFlag) 0 else complexity(tp.dealiasWiden)
@@ -463,6 +449,42 @@ trait Implicits {
       val dtor1 = stripped(core(dtor))
       val dted1 = stripped(core(dted))
       overlaps(dtor1, dted1) && (dtor1 =:= dted1 || complexity(dtor1) > complexity(dted1))
+    }
+
+    private def core(tp: Type): Type = tp.dealiasWiden match {
+      case RefinedType(parents, defs)         => intersectionType(parents map core, tp.typeSymbol.owner)
+      case AnnotatedType(annots, tp)          => core(tp)
+      case ExistentialType(tparams, result)   => core(result).subst(tparams, tparams map (t => core(t.info.bounds.hi)))
+      case PolyType(tparams, result)          => core(result).subst(tparams, tparams map (t => core(t.info.bounds.hi)))
+      case _                                  => tp
+    }
+
+    private def stripped(tp: Type): Type = {
+      // `t.typeSymbol` returns the symbol of the normalized type. If that normalized type
+      // is a `PolyType`, the symbol of the result type is collected. This is precisely
+      // what we require for scala/bug#5318.
+      val syms = for (t <- tp; if t.typeSymbol.isTypeParameter) yield t.typeSymbol
+      deriveTypeWithWildcards(syms.distinct)(tp)
+    }
+
+    private def allSymbols(tp: Type): Set[Symbol] = {
+      @tailrec
+      def loop(tps: List[Type], acc: Set[Symbol]): Set[Symbol] = tps match {
+        case Nil => acc
+        case hd :: tl =>
+          def hdSym(syms: Set[Symbol]) = {
+            val sym = hd.typeSymbol
+            if(sym != NoSymbol) syms + sym else syms
+          }
+          hd.dealias match {
+            case SingleType(pre, sym)    => loop(pre :: hd.dealiasWiden :: tl, hdSym(acc + sym))
+            case ThisType(sym)           => loop(tl, hdSym(acc + sym))
+            case TypeRef(pre, sym, args) => loop(pre :: args ++ tl, hdSym(acc + sym))
+            case RefinedType(parents, _) => loop(parents ++ tl, hdSym(acc))
+            case _ => loop(tl, hdSym(acc))
+          }
+        }
+      loop(List(tp), Set())
     }
 
     /** The expected type with all undetermined type parameters replaced with wildcards. */
@@ -494,32 +516,28 @@ trait Implicits {
         else {
           val ptByName = isByNameParamType(pt)
           val dpt = if (ptByName) dropByName(pt) else pt
+          lazy val spt = stripped(core(dpt))
+          lazy val sptSyms = allSymbols(spt)
+          // Are all the symbols of the stripped core of pt contained in the stripped core of tp?
+          def coversPt(tp: Type): Boolean = {
+            val stp = stripped(core(tp))
+            (stp =:= spt) || (sptSyms diff allSymbols(stp)).isEmpty
+          }
 
           @tailrec
-          def loop(ois: List[OpenImplicit], childByName: Boolean): Boolean = {
+          def loop(ois: List[OpenImplicit], belowByName: Boolean): Boolean = {
             ois match {
               case Nil => false
-              case (hd@OpenImplicit(info, tp, tree1)) :: tl =>
+              case (hd@OpenImplicit(info1, tp, tree1)) :: tl =>
                 val byName = isByNameParamType(tp)
-                if(!byName && !childByName) {
-                  // Existing logic: neither this nor consequent open implicit are by name
-                  (!info.sym.isMacro && tree1.symbol == tree.symbol && dominates(pt, tp)) || loop(tl, false)
-                } else {
-                  if(!info.sym.isMacro && tree1.symbol == tree.symbol) {
-                    val dtp = if (byName) dropByName(tp) else tp
-                    if(byName && ptByName)
-                      // If this open implicit is byname then tie the knot if equal types
-                      !(dtp =:= dpt) && (dominates(dpt, dtp) || loop(tl, byName))
-                    else
-                      // childByName implies we are attempting to satisfy a byname argument of this
-                      // open implicit, in this case we will tie the knot or diverge at that level
-                      // so no need to proceed further.
-                      !childByName && (dominates(dpt, dtp) || loop(tl, byName))
-                  } else
-                    // childByName implies we are attempting to satisfy a byname argument of this
-                    // open implicit, in this case we will tie the knot or diverge at that level
-                    // so no need to proceed further.
-                    !childByName && loop(tl, byName)
+                val dtp = if (byName) dropByName(tp) else tp
+                (if (!info1.sym.isMacro && tree1.symbol == tree.symbol) {
+                  if(belowByName && (dtp =:= dpt)) Some(false) // if there is a byname argument between tp and pt we can tie the knot
+                  else if (dominates(dpt, dtp) && coversPt(dtp)) Some(true)
+                  else None
+                } else None) match {
+                  case Some(res) => res
+                  case None => (!byName || ptByName) && loop(tl, byName || belowByName)
                 }
             }
           }
