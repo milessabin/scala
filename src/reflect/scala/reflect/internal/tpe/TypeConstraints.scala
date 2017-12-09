@@ -93,6 +93,10 @@ private[internal] trait TypeConstraints {
     def loBounds: List[Type] = if (numlo == NoType) lobounds else numlo :: lobounds
     def hiBounds: List[Type] = if (numhi == NoType) hibounds else numhi :: hibounds
     def avoidWiden: Boolean = avoidWidening
+    def stopWidening(): Unit = avoidWidening = true
+
+    def stopWideningIfPrecluded(): Unit =
+      if (instValid && TypeVar.precludesWidening(inst)) stopWidening
 
     def addLoBound(tp: Type, isNumericBound: Boolean = false) {
       // For some reason which is still a bit fuzzy, we must let Nothing through as
@@ -117,9 +121,9 @@ private[internal] trait TypeConstraints {
     }
 
     def checkWidening(tp: Type) {
-      if(tp.isStable) avoidWidening = true
+      if (TypeVar.precludesWidening(tp)) stopWidening()
       else tp match {
-        case HasTypeMember(_, _) => avoidWidening = true
+        case HasTypeMember(_, _) => stopWidening()
         case _ =>
       }
     }
@@ -127,10 +131,7 @@ private[internal] trait TypeConstraints {
     def addHiBound(tp: Type, isNumericBound: Boolean = false) {
       // My current test case only demonstrates the need to let Nothing through as
       // a lower bound, but I suspect the situation is symmetrical.
-      val mustConsider = tp.typeSymbol match {
-        case AnyClass => true
-        case _        => !(hibounds contains tp)
-      }
+      val mustConsider = typeIsAny(tp) || !(hibounds contains tp)
       if (mustConsider) {
         checkWidening(tp)
         if (isNumericBound && isNumericValueType(tp)) {
@@ -240,7 +241,8 @@ private[internal] trait TypeConstraints {
 
         //println("solving "+tvar+" "+up+" "+(if (up) (tvar.constr.hiBounds) else tvar.constr.loBounds)+((if (up) (tvar.constr.hiBounds) else tvar.constr.loBounds) map (_.widen)))
         val newInst = (
-          if (up) {
+          if (up || tvar.constr.hiBounds.exists(isSingleType)) {
+            // If we have a singleton upper bound then we should use it.
             if (depth.isAnyDepth) glb(tvar.constr.hiBounds)
             else glb(tvar.constr.hiBounds, depth)
           }
