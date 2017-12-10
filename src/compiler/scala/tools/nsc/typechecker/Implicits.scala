@@ -1178,14 +1178,21 @@ trait Implicits {
       val PolyType(args, mt) = info.tpe
       val resTpe = mt.finalResultType
       val List(params) = info.tpe.paramLists
-      val List(rec) = params.filter(param => recursive(param.info, resTpe))
-      val argTpe = rec.info
+      val recs = params.filter(param => recursive(dropByName(param.info), resTpe))
+      val argTpes: List[Type] = recs.map(rec => dealiasUnrefine(dropByName(rec.info)))
+      val resArgs: List[Type] = dealiasUnrefine(resTpe).typeArgs
 
-      (dealiasUnrefine(argTpe).typeArgs zip dealiasUnrefine(resTpe).typeArgs) map {
-        case (arg, res) =>
-          if (res =:= arg) Neutral
-          else if (res.contains(arg.typeSymbol)) Convergent
-          else Divergent
+      argTpes.map { argTpe =>
+        (argTpe.typeArgs zip resArgs) map {
+          case (arg, res) =>
+            if (res =:= arg) Neutral
+            else if (res.contains(arg.typeSymbol)) Convergent
+            else Divergent
+        }
+      }.transpose.map { convergences =>
+        if(convergences.forall(convergence => convergence == Convergent || convergence == Neutral) && convergences.exists(_ == Convergent)) Convergent
+        else if(convergences.forall(_ == Neutral)) Neutral
+        else Divergent
       }
     }
 
@@ -1197,7 +1204,7 @@ trait Implicits {
         case PolyType(args, mt) =>
           val tp = mt.finalResultType
           i.tpe.paramLists match {
-            case List(params) if params.head.isImplicit => !params.exists(param => recursive(param.info, tp))
+            case List(params) if params.head.isImplicit => !params.exists(param => recursive(dropByName(param.info), tp))
             case Nil => true
             case _ => false
           }
@@ -1212,8 +1219,8 @@ trait Implicits {
           val tp = mt.finalResultType
           i.tpe.paramLists match {
             case List(params) if params.head.isImplicit =>
-              params.filter(param => recursive(param.info, tp)) match {
-                case List(rec) => convergent(rec.info, tp)
+              params.filter(param => recursive(dropByName(param.info), tp)) match {
+                case recs @ (_ :: _) => recs.forall(rec => convergent(dropByName(rec.info), tp))
                 case _ => false
               }
             case _ => false
@@ -1221,20 +1228,29 @@ trait Implicits {
         case _ => false
       }
 
-    def inductive(local: List[ImplicitInfo], scope: List[ImplicitInfo]): Boolean = {
-      val exhaustive =
-        (local.exists(isBase) || scope.exists(isBase)) &&
-        (local.exists(isInduction) || scope.exists(isInduction)) &&
-        local.forall(i => !i.sym.isMacro && (isBase(i) || isInduction(i))) &&
-        scope.forall(i => !i.sym.isMacro && (isBase(i) || isInduction(i)))
+    def isRecursiveByName(i: ImplicitInfo): Boolean =
+      i.tpe match {
+        case PolyType(args, mt) =>
+          val tp = mt.finalResultType
+          i.tpe.paramLists match {
+            case List(params) if params.head.isImplicit =>
+              params.filter(param => recursive(dropByName(param.info), tp)) match {
+                case recs @ (_ :: _) => recs.forall(rec => isByNameParamType(rec.info))
+                case _ => false
+              }
+            case _ => false
+          }
+        case _ => false
+      }
 
-      if (exhaustive) {
-        val inductions = local.filter(isInduction) ++ scope.filter(isInduction)
-        inductions.map(divergenceMap).transpose.forall { convergences =>
-          !(convergences.exists(_ == Convergent) && convergences.exists(_ == Divergent))
-        }
-      } else false
-    }
+    def inductive(local: List[ImplicitInfo], scope: List[ImplicitInfo]): Boolean =
+      (local.exists(isBase) || scope.exists(isBase)) &&
+      (local.exists(isInduction) || scope.exists(isInduction)) &&
+      local.forall(i => !i.sym.isMacro && (isBase(i) || isInduction(i) || isRecursiveByName(i))) &&
+      scope.forall(i => !i.sym.isMacro && (isBase(i) || isInduction(i) || isRecursiveByName(i))) &&
+      (local.filter(isInduction) ++ scope.filter(isInduction)).map(divergenceMap).transpose.forall { convergences =>
+        !(convergences.exists(_ == Convergent) && convergences.exists(_ == Divergent))
+      }
 
     def solve(pt: Type, tp: Type): SearchResult = {
       val wildPt = deriveTypeWithWildcards(context.outer.undetparams ++ context.undetparams)(pt)
@@ -1400,14 +1416,17 @@ trait Implicits {
               // by implicit resolution of implicit arguments on the left of this argument
               for(param <- params) {
                 var paramTp = param.tpe
-                for(ar <- argResultsBuff)
+                var resTp = mt.finalResultType
+                for(ar <- argResultsBuff) {
                   paramTp = paramTp.subst(ar.subst.from, ar.subst.to)
+                  resTp = resTp.subst(ar.subst.from, ar.subst.to)
+                }
 
-                val paramRecursive = recursive(paramTp, mt.finalResultType)
+                val paramConvergent = convergent(paramTp, resTp)
 
                 val res =
                   if (paramFailed || (paramTp.isErroneous && {paramFailed = true; true}) || paramTp =:= prevTp) SearchFailure
-                  else if (paramRecursive && samePlausibleImplicits(pt, paramTp)) loop(paramTp, false)
+                  else if (paramConvergent && samePlausibleImplicits(pt, paramTp)) loop(paramTp, false)
                   else inferImplicitFor(paramTp, fun, context, reportAmbiguous = false)
 
                 argResultsBuff += res
@@ -1417,7 +1436,7 @@ trait Implicits {
                 } else {
                   mkArg = gen.mkNamedArg // don't pass the default argument (if any) here, but start emitting named arguments for the following args
                   if (!param.hasDefault && !paramFailed) {
-                    if (paramRecursive || !markedInductive)
+                    if (paramConvergent || !markedInductive)
                       context.reporter.reportFirstDivergentError(fun, param, paramTp)(context)
                     else
                       IncompleteInductionImplicitExpansionError(fun, pt, paramTp)(context)

@@ -1,0 +1,5 @@
+byname-inductive-implicits-4.scala:13: error: diverging implicit expansion for type Foo[Option[Int]]
+starting with method fooGen in object Foo
+  implicitly[Foo[Option[Int]]]
+            ^
+one error found
