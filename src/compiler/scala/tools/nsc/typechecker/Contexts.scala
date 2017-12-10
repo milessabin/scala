@@ -289,42 +289,55 @@ trait Contexts { self: Analyzer =>
       else {
         val typer = newTyper(this)
 
-        val (vsyms, vdefs) = implicitDictionary.values.map { case (vsym, rhs) =>
-          (vsym, ValDef(Modifiers(LAZY), vsym.name.toTermName, TypeTree(rhs.tpe), rhs))
-        }.unzip
-
-        val ctor = DefDef(NoMods, nme.CONSTRUCTOR, Nil, ListOfNil, TypeTree(), Block(List(pendingSuperCall), Literal(Constant(()))))
-        val mname = unit.freshTermName("LazyDefns$")
-        val mdef =
-          ModuleDef(Modifiers(SYNTHETIC), mname,
-            Template(List(Ident(AnyRefClass)), noSelfType, ctor :: vdefs.toList)
-          )
-
-        typer.namer.enterSym(mdef)
-
-        val mdef0 = typer.typed(mdef)
-        val msym0 = mdef0.symbol
-        val vsyms0 = vsyms.map { vsym =>
-          mdef0.symbol.moduleClass.asClass.toType.decl(vsym.name)
+        @tailrec
+        def prune(trees: List[Tree], pending: List[(Symbol, Tree)], acc: List[(Symbol, Tree)]): List[(Symbol, Tree)] = pending match {
+          case Nil => acc
+          case ps =>
+            val (in, out) = ps.partition { case (vsym, rhs) => trees.exists(_.exists(_.symbol == vsym)) }
+            if(in.isEmpty) acc
+            else prune(in.map(_._2) ++ trees, out, in ++ acc)
         }
 
-        val vsymMap = (vsyms zip vsyms0).toMap
+        val pruned = prune(List(result.tree), implicitDictionary.values.toList, List.empty[(Symbol, Tree)])
+        if(pruned.isEmpty) result
+        else {
+          val (vsyms, vdefs) = pruned.map { case (vsym, rhs) =>
+            (vsym, ValDef(Modifiers(LAZY), vsym.name.toTermName, TypeTree(rhs.tpe), rhs))
+          }.unzip
 
-        object patchRefs extends Transformer {
-          override def transform(tree: Tree): Tree = {
-            tree match {
-              case i: Ident if vsymMap.contains(i.symbol) =>
-                gen.mkAttributedSelect(gen.mkAttributedRef(msym0), vsymMap(i.symbol)) setType i.tpe
-              case _ =>
-                super.transform(tree)
+          val ctor = DefDef(NoMods, nme.CONSTRUCTOR, Nil, ListOfNil, TypeTree(), Block(List(pendingSuperCall), Literal(Constant(()))))
+          val mname = unit.freshTermName("LazyDefns$")
+          val mdef =
+            ModuleDef(Modifiers(SYNTHETIC), mname,
+              Template(List(Ident(AnyRefClass)), noSelfType, ctor :: vdefs.toList)
+            )
+
+          typer.namer.enterSym(mdef)
+
+          val mdef0 = typer.typed(mdef)
+          val msym0 = mdef0.symbol
+          val vsyms0 = vsyms.map { vsym =>
+            mdef0.symbol.moduleClass.asClass.toType.decl(vsym.name)
+          }
+
+          val vsymMap = (vsyms zip vsyms0).toMap
+
+          object patchRefs extends Transformer {
+            override def transform(tree: Tree): Tree = {
+              tree match {
+                case i: Ident if vsymMap.contains(i.symbol) =>
+                  gen.mkAttributedSelect(gen.mkAttributedRef(msym0), vsymMap(i.symbol)) setType i.tpe
+                case _ =>
+                  super.transform(tree)
+              }
             }
           }
+
+          val tree0 = patchRefs.transform(result.tree)
+          val tree1 = Block(mdef0, tree0).substituteSymbols(vsyms.toList, vsyms0.toList) setType tree.tpe
+
+          new SearchResult(tree1, result.subst, result.undetparams)
         }
-
-        val tree0 = patchRefs.transform(result.tree)
-        val tree1 = Block(mdef0, tree0).substituteSymbols(vsyms.toList, vsyms0.toList) setType tree.tpe
-
-        new SearchResult(tree1, result.subst, result.undetparams)
       }
 
     /* For a named application block (`Tree`) the corresponding `NamedApplyInfo`. */
