@@ -31,10 +31,8 @@ inductive-implicits14.scala:29: error: ambiguous implicit values:
  match expected type TC[Int]
   val h4 = handler[Int](Bar(23))
                        ^
-inductive-implicits14.scala:32: error: ambiguous implicit values:
- both method fooTC in trait TC0 of type [A](implicit ev: TC[A])TC[Foo[A]]
- and method ambig1 in object TC of type [A <: AnyRef]=> TC[A]
- match expected type TC[Foo[Foo[Int]]]
-  val h6 = handler[Foo[Foo[Int]]](Bar(23))
-                                 ^
-6 errors found
+inductive-implicits14.scala:33: warning: a pure expression does nothing in statement position; multiline expressions may require enclosing parentheses
+  h6: TC[Foo[Foo[Int]]]
+    ^
+one warning found
+5 errors found
