@@ -58,6 +58,7 @@ abstract class MutableSettings extends AbsSettings {
   def YliteralTypes: BooleanSetting
   def YkindPolymorphism: BooleanSetting
   def YinductionHeuristics: BooleanSetting
+  def YdottySpecificity: BooleanSetting
 
   // Define them returning a `Boolean` to avoid breaking bincompat change
   // TODO: Add these fields typed as `BooleanSetting` for 2.13.x

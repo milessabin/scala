@@ -1,0 +1,7 @@
+t2030.scala:5: error: ambiguous implicit values:
+ both method newCanBuildFrom in object SortedSet of type [A](implicit ord: Ordering[A])scala.collection.generic.CanBuildFrom[scala.collection.immutable.SortedSet.Coll,A,scala.collection.immutable.SortedSet[A]]
+ and method newCanBuildFrom in class SortedSetFactory of type [A](implicit ord: Ordering[A])scala.collection.generic.CanBuildFrom[scala.collection.immutable.TreeSet.Coll,A,scala.collection.immutable.TreeSet[A]]
+ match expected type scala.collection.generic.CanBuildFrom[scala.collection.immutable.TreeSet[Int],Int,That]
+  val res1 = res0.map(x => x)
+                     ^
+one error found
