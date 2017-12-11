@@ -50,6 +50,7 @@ trait JavaUniverseForce { self: runtime.JavaUniverse  =>
     this.UseInvokeSpecial
     this.TypeParamVarargsAttachment
     this.KnownDirectSubclassesCalled
+    this.ImplicitImport
     this.noPrint
     this.typeDebug
     this.Range

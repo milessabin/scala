@@ -1895,16 +1895,27 @@ trait Implicits {
 
         // `materializeImplicit` does some preprocessing for `pt`
         // is it only meant for manifests/tags or we need to do the same for `implicitsOfExpectedType`?
+        lazy val implicitScope =
+          if(context.implicitImports.isEmpty) implicitsOfExpectedType
+          else {
+            val importedInfos = context.implicitImports.flatMap { imp =>
+              imp.allImportedSymbols.filter(_.isImplicit).map { sym =>
+                new ImplicitInfo(sym.name, imp.qual.tpe, sym)
+              }
+            }
+            importedInfos :: implicitsOfExpectedType
+          }
+
         if (settings.YinductionHeuristics) {
           if (result.isFailure && !wasAmbiguous) {
-            result = tryInduction(implicitsOfExpectedType)
+            result = tryInduction(implicitScope)
 
             if (result.isFailure && !result.isNoninductive && !result.isAmbiguousFailure)
-              result = searchImplicit(implicitsOfExpectedType, isLocalToCallsite = false)
+              result = searchImplicit(implicitScope, isLocalToCallsite = false)
           }
         } else {
           if (result.isFailure && !wasAmbiguous)
-            result = searchImplicit(implicitsOfExpectedType, isLocalToCallsite = false)
+            result = searchImplicit(implicitScope, isLocalToCallsite = false)
         }
 
         if (result.isFailure)

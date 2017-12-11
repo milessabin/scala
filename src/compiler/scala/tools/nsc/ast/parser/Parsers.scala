@@ -2465,12 +2465,14 @@ self =>
 
 
     /** {{{
-     *  Import  ::= import ImportExpr {`,' ImportExpr}
+     *  Import  ::= import [implicit] ImportExpr {`,' ImportExpr}
      *  }}}
      */
     def importClause(): List[Tree] = {
       val offset = accept(IMPORT)
-      commaSeparated(importExpr()) match {
+      val implicitMod = in.token == IMPLICIT
+      if(implicitMod) in.nextToken
+      commaSeparated(importExpr(implicitMod)) match {
         case Nil => Nil
         case t :: rest =>
           // The first import should start at the position of the keyword.
@@ -2483,7 +2485,7 @@ self =>
      *  ImportExpr ::= StableId `.' (Id | `_' | ImportSelectors)
      *  }}}
      */
-    def importExpr(): Tree = {
+    def importExpr(implicitMod: Boolean): Tree = {
       val start = in.offset
       def thisDotted(name: TypeName) = {
         in.nextToken()
@@ -2514,7 +2516,9 @@ self =>
             else List(makeImportSelector(name, nameOffset))
         }
         // reaching here means we're done walking.
-        atPos(start)(Import(expr, selectors))
+        val tree = Import(expr, selectors)
+        if(implicitMod) tree updateAttachment ImplicitImport
+        atPos(start)(tree)
       }
 
       loop(in.token match {
