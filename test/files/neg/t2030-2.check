@@ -1,0 +1,7 @@
+t2030-2.scala:31: error: ambiguous implicit values:
+ both method make in object X of type => Both[X,X]
+ and method make in trait Factory of type => Both[Y,Y]
+ match expected type Both[Y,X]
+  get
+  ^
+one error found
