@@ -715,6 +715,15 @@ trait Infer extends Checkable {
         argtpes
     }
 
+    // cp. enhanceBounds in typedAppliedTypeTree
+    def enhanceBounds(okparams: List[Symbol], okargs: List[Type], undets: List[Symbol]): Unit =
+      undets.foreach { undet =>
+        val bounds = undet.info.bounds
+        val substBounds = bounds.subst(okparams, okargs)
+        if(bounds ne substBounds)
+          undet.setInfo(substBounds)
+      }
+
     private def isApplicableToMethod(undetparams: List[Symbol], mt: MethodType, argtpes0: List[Type], pt: Type): Boolean = {
       val formals          = formalTypes(mt.paramTypes, argtpes0.length, removeByName = false)
       def missingArgs      = missingParams[Type](argtpes0, mt.params, x => Some(x) collect { case NamedType(n, _) => n })
@@ -731,6 +740,7 @@ trait Infer extends Checkable {
       def tryInstantiating(args: List[Type]) = falseIfNoInstance {
         val restpe = mt resultType args
         val AdjustedTypeArgs.Undets(okparams, okargs, leftUndet) = methTypeArgs(EmptyTree, undetparams, formals, restpe, args, pt)
+        enhanceBounds(okparams, okargs, leftUndet)
         val restpeInst = restpe.instantiateTypeParams(okparams, okargs)
         // #2665: must use weak conformance, not regular one (follow the monomorphic case above)
         exprTypeArgs(leftUndet, restpeInst, pt, useWeaklyCompatible = true) match {
@@ -975,11 +985,14 @@ trait Infer extends Checkable {
         List()
       } else {
         val AdjustedTypeArgs.Undets(okParams, okArgs, leftUndet) = adjustTypeArgs(tparams, tvars, targsStrict)
+        enhanceBounds(okParams, okArgs, leftUndet)
+
         def solved_s = map2(okParams, okArgs)((p, a) => s"$p=$a") mkString ","
         def undet_s = leftUndet match {
           case Nil => ""
           case ps  => ps.mkString(", undet=", ",", "")
         }
+
         printTyping(tree, s"infer solved $solved_s$undet_s")
         substExpr(tree, okParams, okArgs, pt)
         leftUndet
@@ -1021,6 +1034,7 @@ trait Infer extends Checkable {
 
           val AdjustedTypeArgs.AllArgsAndUndets(okparams, okargs, allargs, leftUndet) =
             methTypeArgs(fn, undetparams, formals, restpe, argtpes, pt)
+          enhanceBounds(okparams, okargs, leftUndet)
 
           if (checkBounds(fn, NoPrefix, NoSymbol, undetparams, allargs, "inferred ")) {
             val treeSubst = new TreeTypeSubstituter(okparams, okargs)
