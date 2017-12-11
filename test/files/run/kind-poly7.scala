@@ -118,15 +118,15 @@ object Test extends App {
     def map[A, B](fa: List[A])(f: A => B): List[B] = fa.map(f)
   }
 
-  val l: List[String] = Functor[List].mapper(new Morphism1((i:Int) => i.toString)).apply(List(5))
-  assert(l == List("5"))
+  //val l: List[String] = Functor[List].mapper(new Morphism1((i:Int) => i.toString)).apply(List(5))
+  //assert(l == List("5"))
 
   implicit val optionFunctor = new Functor1[Option] {
     def map[A, B](fa: Option[A])(f: A => B): Option[B ]= fa.map(f)
   }
 
-  val l2: Option[String] = Functor[Option].mapper(new Morphism1((i:Int) => i.toString)).apply(Some(5):Option[Int])
-  assert(l2 == Some("5"))
+  //val l2: Option[String] = Functor[Option].mapper(new Morphism1((i:Int) => i.toString)).apply(Some(5):Option[Int])
+  //assert(l2 == Some("5"))
 
   // Sample2: TC[_[_], _] Functor
   case class TC[F[_], A](fa: F[A])

@@ -822,7 +822,7 @@ trait Infer extends Checkable {
      *  applied and also allows more intuitive implicit selection which aligns more closely with normal
      *  overload resolution rules.
      */
-    def isAsSpecific(ftpe1: Type, ftpe2: Type, nullaryImplicitArgs: Boolean): Boolean = {
+    def isAsSpecific(ftpe1: Type, ftpe2: Type, nullaryImplicitArgs: Boolean = false): Boolean = {
       def checkIsApplicable(argtpes: List[Type]) = isApplicable(Nil, ftpe2, argtpes, WildcardType)
       def bothAreVarargs                         = isVarArgsList(ftpe1.params) && isVarArgsList(ftpe2.params)
       def nullaryImplicit(mt: MethodType): Boolean = mt.isImplicit && nullaryImplicitArgs
@@ -901,7 +901,7 @@ trait Infer extends Checkable {
       || isProperSubClassOrObject(sym1.safeOwner, sym2.owner)
     )
 
-    def isStrictlyMoreSpecific(ftpe1: Type, ftpe2: Type, sym1: Symbol, sym2: Symbol, nullaryImplicitArgs: Boolean): Boolean = {
+    def isStrictlyMoreSpecific(ftpe1: Type, ftpe2: Type, sym1: Symbol, sym2: Symbol, nullaryImplicitArgs: Boolean = false): Boolean = {
       // ftpe1 / ftpe2 are OverloadedTypes (possibly with one single alternative) if they
       // denote the type of an "apply" member method (see "followApply")
       ftpe1.isError || {
