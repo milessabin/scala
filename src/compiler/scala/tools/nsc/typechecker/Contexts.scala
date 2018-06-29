@@ -101,6 +101,10 @@ trait Contexts { self: Analyzer =>
     else RootImports.completeList
   }
 
+  class ImplicitContext(
+    var openImplicits: List[OpenImplicit],
+    val implicitDictionary: mutable.ArrayBuffer[(Type, (Symbol, Tree))]
+  )
 
   def rootContext(unit: CompilationUnit, tree: Tree = EmptyTree, throwing: Boolean = false, checking: Boolean = false): Context = {
     val rootImportsContext = rootImports(unit).foldLeft(startContext)((c, sym) => c.make(gen.mkWildcardImport(sym)))
@@ -240,69 +244,67 @@ trait Contexts { self: Analyzer =>
     protected[Contexts] def importOrNull: ImportInfo = null
     def isRootImport: Boolean = false
 
+    var implicitContext: ImplicitContext = null
+
     /** Types for which implicit arguments are currently searched */
-    var openImplicits: List[OpenImplicit] = List()
+    //var openImplicits: List[OpenImplicit] = List()
+    
+    def openImplicits: List[OpenImplicit] =
+      if(implicitContext == null) Nil
+      else implicitContext.openImplicits
+
+    def openImplicits_=(oi: List[OpenImplicit]): Unit =
+      if(implicitContext == null) implicitContext = new ImplicitContext(oi, mutable.ArrayBuffer.empty)
+      else implicitContext.openImplicits = oi
+
     final def isSearchingForImplicitParam: Boolean = {
-      openImplicits.nonEmpty && openImplicits.exists(x => !x.isView)
+      implicitContext != null && implicitContext.openImplicits.nonEmpty && implicitContext.openImplicits.exists(x => !x.isView)
     }
 
-    private type ImplicitDict = List[(Type, (Symbol, Tree))]
-    private var implicitDictionary: ImplicitDict = null
-
-    def implicitRootContext: Context = {
-      if(implicitDictionary != null) this
-      else if(outerIsNoContext || outer.openImplicits.isEmpty) {
-        implicitDictionary = Nil
-        this
-      } else outer.implicitRootContext
+    def implicitRootContext: ImplicitContext = {
+      if(implicitContext == null)
+        implicitContext = new ImplicitContext(Nil, mutable.ArrayBuffer.empty)
+      implicitContext
     }
 
-    private def linkImpl(tpe: Type): Tree = {
+    def linkByNameImplicit(tpe: Type): Tree = {
+      val irc = implicitRootContext
       val sym =
-        implicitDictionary.find(_._1 =:= tpe) match {
+        irc.implicitDictionary.find(_._1 =:= tpe) match {
           case Some((_, (sym, _))) => sym
           case None =>
             val vname = unit.freshTermName("rec$")
             val vsym = owner.newValue(vname, newFlags = FINAL | SYNTHETIC) setInfo tpe
-            implicitDictionary +:= (tpe -> (vsym, EmptyTree))
+            irc.implicitDictionary.addOne(tpe -> (vsym, EmptyTree))
             vsym
         }
       gen.mkAttributedRef(sym) setType tpe
     }
 
-    def linkByNameImplicit(tpe: Type): Tree = implicitRootContext.linkImpl(tpe)
-
-    private def refImpl(tpe: Type): Tree =
-      implicitDictionary.find(_._1 =:= tpe) match {
+    def refByNameImplicit(tpe: Type): Tree = {
+      val irc = implicitRootContext
+      irc.implicitDictionary.find(_._1 =:= tpe) match {
         case Some((_, (sym, _))) =>
           gen.mkAttributedRef(sym) setType tpe
         case None =>
           EmptyTree
       }
-
-    def refByNameImplicit(tpe: Type): Tree = implicitRootContext.refImpl(tpe)
-
-    private def defineImpl(tpe: Type, result: SearchResult): SearchResult = {
-      @tailrec
-      def patch(d: ImplicitDict, acc: ImplicitDict): (ImplicitDict, SearchResult) = d match {
-        case Nil => (implicitDictionary, result)
-        case (tp, (sym, EmptyTree)) :: tl if tp =:= tpe =>
-          val ref = gen.mkAttributedRef(sym) setType tpe
-          val res = new SearchResult(ref, result.subst, result.undetparams)
-          (acc reverse_::: ((tpe, (sym, result.tree)) :: tl), res)
-        case hd :: tl =>
-          patch(tl, hd :: acc)
-      }
-
-      val (d, res) = patch(implicitDictionary, Nil)
-      implicitDictionary = d
-      res
     }
 
-    def defineByNameImplicit(tpe: Type, result: SearchResult): SearchResult = implicitRootContext.defineImpl(tpe, result)
+    def defineByNameImplicit(tpe: Type, result: SearchResult): SearchResult = {
+      val irc = implicitRootContext
+      val i = irc.implicitDictionary.indexWhere(e => e._1 =:= tpe && e._2._2 == EmptyTree)
+      if(i < 0) result
+      else {
+        val (_, (sym, _)) = irc.implicitDictionary(i)
+        val ref = gen.mkAttributedRef(sym) setType tpe
+        irc.implicitDictionary(i) = (tpe, (sym, result.tree))
+        new SearchResult(ref, result.subst, result.undetparams)
+      }
+    }
 
     def emitImplicitDictionary(result: SearchResult): SearchResult =
-      if(implicitDictionary == null || implicitDictionary.isEmpty || result.tree == EmptyTree) result
+      if(!(outerIsNoContext || outer.openImplicits.isEmpty) || implicitContext == null || implicitContext.implicitDictionary.isEmpty || result.tree == EmptyTree) result
       else {
         val typer = newTyper(this)
 
@@ -315,7 +317,8 @@ trait Contexts { self: Analyzer =>
             else prune(in.map(_._2) ++ trees, out, in ++ acc)
         }
 
-        val pruned = prune(List(result.tree), implicitDictionary.map(_._2), List.empty[(Symbol, Tree)])
+        val pruned = prune(List(result.tree), implicitContext.implicitDictionary.toList.map(_._2), List.empty[(Symbol, Tree)])
+
         if(pruned.isEmpty) result
         else {
           val (vsyms, vdefs) = pruned.map { case (vsym, rhs) =>
@@ -593,7 +596,9 @@ trait Contexts { self: Analyzer =>
         new Context(tree, owner, scope, unit, this, reporter)
 
       // Fields that are directly propagated
-      c.openImplicits      = openImplicits
+      c.implicitContext    = 
+        if(implicitContext == null) null
+        else new ImplicitContext(implicitContext.openImplicits, implicitContext.implicitDictionary)
       c.contextMode        = contextMode // note: ConstructorSuffix, a bit within `mode`, is conditionally overwritten below.
 
       // Fields that may take on a different value in the child
